@@ -4,6 +4,10 @@
 #include <windows.h>
 #include "sal.h"
 
+#ifdef PERIOD
+#include <mmsystem.h>
+#endif
+
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 HANDLE hMutex;
@@ -13,7 +17,7 @@ char **cmds;
 
 static void chop(char s[]){
 	int i = strlen(s) - 1;
-	if(s[i] == '\n'){
+	if (s[i] == '\n'){
 		s[i] = '\0';
 	}
 }
@@ -22,9 +26,10 @@ static int read_cmds(void)
 {
 	int i;
 	FILE *fp;
-	char s[MAX_LEN], *p;
+	char s[MAX_LEN], *p, caption[FILENAME_MAX];
+	HMENU hPopup;
 	
-	if((fp = fopen(CMDS_FILE, "r")) == NULL){
+	if ((fp = fopen(CMDS_FILE, "r")) == NULL){
 		return -1;
 	}
 	
@@ -36,16 +41,36 @@ static int read_cmds(void)
 	
 	fseek(fp, 0, SEEK_SET);
 	i = 0;
+	hPopup = NULL;
 	while (fgets(s, MAX_LEN, fp) != 0){
 		chop(s);
 		p = strtok(s, "\t");
-		AppendMenu(hMenu, MF_STRING, WM_APP_MENU + i, p);
-		p = strtok(NULL, "\t");
-		cmds[i] = (char *)malloc(strlen(p) + 1);
-		strcpy(cmds[i], p);
+		if (p[0] == '*'){
+			if (hPopup != NULL){
+				AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
+			}
+			p = strtok(NULL, "\t");
+			if (p == NULL){
+				hPopup = NULL;
+			} else {
+				strcpy(caption, p);
+				hPopup = CreatePopupMenu();
+			}
+		} else {
+			if (hPopup == NULL){
+				AppendMenu(hMenu, MF_STRING, WM_APP_MENU + i, p);
+			} else {
+				AppendMenu(hPopup, MF_STRING, WM_APP_MENU + i, p);
+			}
+			p = strtok(NULL, "\t");
+			cmds[i] = (char *)malloc(strlen(p) + 1);
+			strcpy(cmds[i], p);
+		}
 		i++;
 	}
-	
+	if (hPopup != NULL){
+		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
+	}
 	fclose(fp);
 	return 0;
 }
@@ -56,11 +81,15 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 	WNDCLASSEX wcl;
 	MSG Msg;
 	
-	if((hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, IDENT)) != NULL){ 
+	if ((hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, IDENT)) != NULL) {
 		CloseHandle(hMutex);
 		return 1;
 	}
 	hMutex = CreateMutex(FALSE, 0, IDENT);
+	
+#ifdef PERIOD
+	timeBeginPeriod(1);
+#endif
 	
 	hIcon = LoadIcon(NULL, IDI_APPLICATION);
 	wcl.hInstance = hIns;
@@ -74,7 +103,7 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 	wcl.hbrBackground = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
 	wcl.cbSize = sizeof(WNDCLASSEX);
 	
-	if(RegisterClassEx(&wcl) == 0){
+	if (RegisterClassEx(&wcl) == 0) {
 		return 1;
 	}
 	
@@ -93,14 +122,6 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 		NULL
 	);
 	
-	hMenu = CreatePopupMenu();
-	if(read_cmds() == -1){
-		DestroyMenu(hMenu);
-		return 1;
-	}
-	AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
-	AppendMenu(hMenu, MF_STRING, WM_QUIT_MENU, "Quit");
-	
 	ShowWindow(hWnd, SW_HIDE);
 	UpdateWindow(hWnd);
 	
@@ -108,6 +129,10 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 		TranslateMessage(&Msg);
 		DispatchMessage(&Msg);
 	}
+	
+#ifdef PERIOD
+	timeEndPeriod(1);
+#endif
 	
 	return Msg.wParam;
 }
@@ -164,7 +189,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		nIcon.hIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_COPYFROMRESOURCE);
 		strcpy(nIcon.szTip, APP_TITLE);
 		Shell_NotifyIcon(NIM_ADD, &nIcon);
-		DestroyIcon(nIcon.hIcon); 
+		DestroyIcon(nIcon.hIcon);
+		hMenu = CreatePopupMenu();
+		read_cmds();
+		AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
+		AppendMenu(hMenu, MF_STRING, WM_QUIT_MENU, "Quit");
+		SetMenu(hWnd, hMenu);
 		break;
 	case WM_DESTROY:
 		Shell_NotifyIcon(NIM_DELETE, &nIcon);
