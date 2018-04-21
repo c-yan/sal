@@ -3,11 +3,9 @@
 #include <string.h>
 #include <windows.h>
 #include <shellapi.h>
-#include "sal.h"
-
-#ifdef PERIOD
 #include <mmsystem.h>
-#endif
+#include <imm.h>
+#include "sal.h"
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
@@ -76,11 +74,30 @@ static int read_cmds(void)
 	return 0;
 }
 
+void disable_ime(void)
+{
+	HMODULE hImm32;
+	BOOL WINAPI (*pImmDisableIME)(DWORD);
+
+	if ((hImm32 = LoadLibrary("imm32.dll")) == NULL) {
+		return;
+	}
+	
+	if ((pImmDisableIME = GetProcAddress(hImm32, "ImmDisableIME")) ==NULL) {
+		return;
+	}
+			
+	pImmDisableIME(0);
+	
+	FreeLibrary(hImm32);
+}
+
 int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefaultWindowMode)
 {
 	HWND hWnd;
 	WNDCLASSEX wcl;
 	MSG Msg;
+	TIMECAPS tc;
 	
 	if ((hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, IDENT)) != NULL) {
 		CloseHandle(hMutex);
@@ -88,10 +105,10 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 	}
 	hMutex = CreateMutex(FALSE, 0, IDENT);
 	
-#ifdef PERIOD
-	timeBeginPeriod(1);
-#endif
-	
+	timeGetDevCaps(&tc , sizeof(TIMECAPS));
+	timeBeginPeriod(tc.wPeriodMin);
+	disable_ime();
+
 	hIcon = LoadIcon(NULL, IDI_APPLICATION);
 	wcl.hInstance = hIns;
 	wcl.lpszClassName = IDENT;
@@ -122,20 +139,18 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 		NULL
 	);
 	
-	ShowWindow(hWnd, SW_MINIMIZE);
+	//ShowWindow(hWnd, SW_MINIMIZE);
 	ShowWindow(hWnd, SW_HIDE);
 	//ShowWindow(hWnd, SW_SHOW);
-	UpdateWindow(hWnd);
+	//UpdateWindow(hWnd);
 	
 	while(GetMessage(&Msg, NULL, 0, 0)){
 		TranslateMessage(&Msg);
 		DispatchMessage(&Msg);
 	}
-	
-#ifdef PERIOD
-	timeEndPeriod(1);
-#endif
-	
+
+	timeEndPeriod(tc.wPeriodMin);
+
 	return Msg.wParam;
 }
 
@@ -161,21 +176,24 @@ static void exec_cmd(int i)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	POINT p;
+	POINT pt;
+	HMENU hMenu;
 	static NOTIFYICONDATA nIcon;
 	static UINT WM_TASKBAR_CREATED;
 	
 	switch (uMsg){
 	case WM_TASKTRAY:
-		if(lParam == WM_LBUTTONDOWN){
-			SetForegroundWindow(hWnd);
-			GetCursorPos(&p);
-			TrackPopupMenu(hLMenu, TPM_RIGHTALIGN, p.x, p.y, 0, hWnd, NULL);
+		hMenu = 0;
+		if (lParam == WM_LBUTTONUP) {
+			hMenu = hLMenu;
+		} else if (lParam == WM_RBUTTONUP) {
+			hMenu = hRMenu;
 		}
-		if(lParam == WM_RBUTTONDOWN){
+		if (hMenu != 0) {
 			SetForegroundWindow(hWnd);
-			GetCursorPos(&p);
-			TrackPopupMenu(hRMenu, TPM_RIGHTALIGN, p.x, p.y, 0, hWnd, NULL);
+			GetCursorPos(&pt);
+			TrackPopupMenu(hMenu, TPM_RIGHTALIGN, pt.x, pt.y, 0, hWnd, NULL);
+			PostMessage(hWnd, WM_NULL, 0, 0);
 		}
 		break;
 	case WM_COMMAND:
@@ -188,6 +206,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		} else {
 			exec_cmd(LOWORD(wParam) - WM_APP_MENU);
 		}
+		SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
 		break;
 	case WM_CREATE:
 		WM_TASKBAR_CREATED = RegisterWindowMessage("TaskbarCreated");

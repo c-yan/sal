@@ -1,13 +1,12 @@
 CC = gcc
-CFLAGS = -Os -Wall -pipe #-march=i586 -fomit-frame-pointer 
+CFLAGS = -Os -Wall -fno-exceptions -pipe
+LIBS = -lwinmm
 OBJECTS = sal.o
-EXTRA = -DPERIOD -lwinmm
-#CRT = D:\bin\cl\mingw\lib\crt_noglob.o
 
 all: sal.exe
 
 sal.exe: $(OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $(CRT) $< -mwindows $(EXTRA)
+	$(CC) $(CFLAGS) -o $@ $< -mwindows $(LIBS)
 	strip -s $@
 
 sal.o: sal.c
