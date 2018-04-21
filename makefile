@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Os -Wall -mcpu=i586 -march=i586 -pipe
+CFLAGS = -Os -Wall -mcpu=i586 -march=i586 -pipe -mno-cygwin
+# -fno-exceptions
 OBJECTS = sal.o
 
 all: sal.exe

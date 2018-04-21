@@ -11,6 +11,13 @@ HICON hIcon;
 HMENU hMenu;
 char **cmds;
 
+static void chop(char s[]){
+	int i = strlen(s) - 1;
+	if(s[i] == '\n'){
+		s[i] = '\0';
+	}
+}
+
 static int read_cmds(void)
 {
 	int i;
@@ -30,14 +37,12 @@ static int read_cmds(void)
 	fseek(fp, 0, SEEK_SET);
 	i = 0;
 	while (fgets(s, MAX_LEN, fp) != 0){
+		chop(s);
 		p = strtok(s, "\t");
 		AppendMenu(hMenu, MF_STRING, WM_APP_MENU + i, p);
 		p = strtok(NULL, "\t");
 		cmds[i] = (char *)malloc(strlen(p) + 1);
 		strcpy(cmds[i], p);
-		if (cmds[i][strlen(cmds[i]) - 1] == '\n'){
-			cmds[i][strlen(cmds[i]) - 1] = '\0';
-		}
 		i++;
 	}
 	
@@ -96,7 +101,6 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 	AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
 	AppendMenu(hMenu, MF_STRING, WM_QUIT_MENU, "Quit");
 	
-	//ShowWindow(hWnd, SW_SHOW);
 	ShowWindow(hWnd, SW_HIDE);
 	UpdateWindow(hWnd);
 	
