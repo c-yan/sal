@@ -53,6 +53,7 @@ static int read_cmds(void)
     i = 0;
     hPopup = NULL;
     while (fgets(s, MAX_LEN, fp) != 0) {
+        if (s[0] == ';') continue;
         chop(s);
         p = strtok(s, "\t");
         if (p[0] == '*') {
