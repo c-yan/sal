@@ -123,6 +123,7 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 	);
 	
 	ShowWindow(hWnd, SW_HIDE);
+	//ShowWindow(hWnd, SW_SHOW);
 	UpdateWindow(hWnd);
 	
 	while(GetMessage(&Msg, NULL, 0, 0)){
@@ -164,6 +165,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	POINT p;
 	static NOTIFYICONDATA nIcon;
+	static UINT WM_TASKBAR_CREATED;
 	
 	switch (uMsg){
 	case WM_TASKTRAY:
@@ -181,6 +183,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 	case WM_CREATE:
+		WM_TASKBAR_CREATED = RegisterWindowMessage("TaskbarCreated");
 		nIcon.cbSize = sizeof(NOTIFYICONDATA);
 		nIcon.hWnd = hWnd;
 		nIcon.uID = 1;
@@ -189,7 +192,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		nIcon.hIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_COPYFROMRESOURCE);
 		strcpy(nIcon.szTip, APP_TITLE);
 		Shell_NotifyIcon(NIM_ADD, &nIcon);
-		DestroyIcon(nIcon.hIcon);
 		hMenu = CreatePopupMenu();
 		read_cmds();
 		AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
@@ -198,11 +200,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_DESTROY:
 		Shell_NotifyIcon(NIM_DELETE, &nIcon);
+		DestroyIcon(nIcon.hIcon);
 		DestroyMenu(hMenu);
 		ReleaseMutex(hMutex);
 		PostQuitMessage(0);
 		break;
 	default:
+		if((WM_TASKBAR_CREATED != 0) && (uMsg == WM_TASKBAR_CREATED)){
+			Shell_NotifyIcon(NIM_ADD, &nIcon);
+		}
 		return DefWindowProc(hWnd, uMsg, wParam, lParam);
 	}
 	return 0;

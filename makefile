@@ -1,6 +1,5 @@
 CC = gcc
-CFLAGS = -Os -Wall -mcpu=i586 -march=i586 -pipe -mno-cygwin
-# -fno-exceptions
+CFLAGS = -Os -Wall -mcpu=i586 -march=i586 -pipe
 OBJECTS = sal.o
 #EXTRA = -DPERIOD -lwinmm
 
