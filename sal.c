@@ -13,12 +13,26 @@ HANDLE hMutex;
 HICON hIcon;
 HMENU hLMenu, hRMenu;
 char **cmds;
+char **params;
 
 static void chop(char s[]){
     int i = strlen(s) - 1;
     if (s[i] == '\n'){
         s[i] = '\0';
     }
+}
+
+static int line_count(FILE *fp) {
+    int i;
+    char s[MAX_LEN];
+
+    fseek(fp, 0, SEEK_SET);
+    i = 0;
+    while (fgets(s, MAX_LEN, fp) != 0){
+        i++;
+    }
+    fseek(fp, 0, SEEK_SET);
+    return i;
 }
 
 static int read_cmds(void)
@@ -32,13 +46,10 @@ static int read_cmds(void)
         return -1;
     }
 
-    i = 0;
-    while (fgets(s, MAX_LEN, fp) != 0){
-        i++;
-    }
-    cmds = (char**)malloc(sizeof(char *) * i);
+    i = line_count(fp);
+    cmds = (char**)calloc(i, sizeof(char *));
+    params = (char**)calloc(i, sizeof(char *));
 
-    fseek(fp, 0, SEEK_SET);
     i = 0;
     hPopup = NULL;
     while (fgets(s, MAX_LEN, fp) != 0){
@@ -64,6 +75,11 @@ static int read_cmds(void)
             p = strtok(NULL, "\t");
             cmds[i] = (char *)malloc(strlen(p) + 1);
             strcpy(cmds[i], p);
+            p = strtok(NULL, "\t");
+            if (p != NULL) {
+                params[i] = (char *)malloc(strlen(p) + 1);
+                strcpy(params[i], p);
+            }
         }
         i++;
     }
@@ -74,7 +90,7 @@ static int read_cmds(void)
     return 0;
 }
 
-void disable_ime(void)
+static void disable_ime(void)
 {
     HMODULE hImm32;
     BOOL WINAPI (*pImmDisableIME)(DWORD);
@@ -166,7 +182,7 @@ static void exec_cmd(int i)
 
     _fullpath(cmd, cmds[i], _MAX_PATH);
     extractpath(path, cmd);
-    ShellExecute(NULL, NULL, cmd, NULL, path, SW_SHOW);
+    ShellExecute(NULL, NULL, cmd, params[i], path, SW_SHOW);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -177,7 +193,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     static UINT WM_TASKBAR_CREATED;
 
     switch (uMsg){
-    case WM_TASKTRAY:
+    case WM_NOTIFICATION:
         hMenu = 0;
         if (lParam == WM_LBUTTONUP) {
             hMenu = hLMenu;
@@ -197,6 +213,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         } else if(LOWORD(wParam) == WM_RELOAD_MENU){
             DestroyMenu(hLMenu);
             hLMenu = CreatePopupMenu();
+            // TODO: free cmds/params
             read_cmds();
         } else {
             exec_cmd(LOWORD(wParam) - WM_APP_MENU);
@@ -209,7 +226,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         nIcon.hWnd = hWnd;
         nIcon.uID = 1;
         nIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-        nIcon.uCallbackMessage = WM_TASKTRAY;
+        nIcon.uCallbackMessage = WM_NOTIFICATION;
         nIcon.hIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_COPYFROMRESOURCE);
         strcpy(nIcon.szTip, APP_TITLE);
         Shell_NotifyIcon(NIM_ADD, &nIcon);

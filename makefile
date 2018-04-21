@@ -13,3 +13,6 @@ sal.o: sal.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 sal.c: sal.h
+
+clean:
+	rm sal.o sal.exe
