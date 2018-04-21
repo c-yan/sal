@@ -9,11 +9,11 @@
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
-HANDLE hMutex;
-HICON hIcon;
-HMENU hLMenu, hRMenu;
-char **cmds;
-char **params;
+static HANDLE hMutex;
+static HICON hIcon;
+static HMENU hLMenu, hRMenu;
+static char **cmds;
+static char **params;
 
 static void chop(char s[]) {
     int i = strlen(s) - 1;
@@ -185,6 +185,14 @@ static void exec_cmd(int i)
     ShellExecute(NULL, NULL, cmd, params[i], path, SW_SHOW);
 }
 
+static void add_icon(PNOTIFYICONDATA lpdata)
+{
+    while (Shell_NotifyIcon(NIM_ADD, lpdata) == FALSE) {
+        Sleep(1000);
+        if (Shell_NotifyIcon(NIM_MODIFY, lpdata) != FALSE) break;
+    }
+}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     POINT pt;
@@ -229,7 +237,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         nIcon.uCallbackMessage = WM_NOTIFICATION;
         nIcon.hIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_COPYFROMRESOURCE);
         strcpy(nIcon.szTip, APP_TITLE);
-        Shell_NotifyIcon(NIM_ADD, &nIcon);
+        add_icon(&nIcon);
         hLMenu = CreatePopupMenu();
         read_cmds();
         hRMenu = CreatePopupMenu();
@@ -245,11 +253,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         break;
     default:
-        if((WM_TASKBAR_CREATED != 0) && (uMsg == WM_TASKBAR_CREATED)) {
-            while (Shell_NotifyIcon(NIM_ADD, &nIcon) == FALSE) {
-                if (GetLastError() != ERROR_TIMEOUT) break;
-                Sleep(1000);
-            }
+        if(uMsg == WM_TASKBAR_CREATED) {
+            add_icon(&nIcon);
         }
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
