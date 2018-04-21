@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+#include <shellapi.h>
 #include "sal.h"
 
 #ifdef PERIOD
@@ -149,16 +150,11 @@ static void extract_filepath(char *s)
 
 static void exec_cmd(int i)
 {
-	STARTUPINFO SI;
-	PROCESS_INFORMATION PI;
 	char s[FILENAME_MAX];
 	
 	strcpy(s, cmds[i]);
 	extract_filepath(s);
-	//MessageBox(NULL, s, "", MB_OK);
-	GetStartupInfo(&SI);
-	CreateProcess(cmds[i], "", NULL, NULL, FALSE, 0, NULL, s, &SI, &PI);
-	//MessageBox(NULL, cmds[i], "", MB_OK);
+	ShellExecute(NULL, NULL, cmds[i], NULL, s, SW_SHOW);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)

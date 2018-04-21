@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Os -Wall -mcpu=i586 -march=i586 -pipe
+CFLAGS = -Os -Wall -pipe #-march=i586
 OBJECTS = sal.o
 #EXTRA = -DPERIOD -lwinmm
 
