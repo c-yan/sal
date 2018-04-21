@@ -224,6 +224,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             hLMenu = CreatePopupMenu();
             // TODO: free cmds/params
             read_cmds();
+        } else if(LOWORD(wParam) == WM_CONFIG_MENU) {
+		    ShellExecute(NULL, NULL, CMDS_FILE, NULL, NULL, SW_SHOW);
         } else {
             exec_cmd(LOWORD(wParam) - WM_APP_MENU);
         }
@@ -242,6 +244,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         hLMenu = CreatePopupMenu();
         read_cmds();
         hRMenu = CreatePopupMenu();
+        AppendMenu(hRMenu, MF_STRING, WM_CONFIG_MENU, "Config");
         AppendMenu(hRMenu, MF_STRING, WM_RELOAD_MENU, "Reload");
         AppendMenu(hRMenu, MF_STRING, WM_QUIT_MENU, "Quit");
         break;
