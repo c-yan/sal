@@ -15,228 +15,223 @@ HMENU hLMenu, hRMenu;
 char **cmds;
 
 static void chop(char s[]){
-	int i = strlen(s) - 1;
-	if (s[i] == '\n'){
-		s[i] = '\0';
-	}
+    int i = strlen(s) - 1;
+    if (s[i] == '\n'){
+        s[i] = '\0';
+    }
 }
 
 static int read_cmds(void)
 {
-	int i;
-	FILE *fp;
-	char s[MAX_LEN], *p, caption[_MAX_PATH];
-	HMENU hPopup;
-	
-	if ((fp = fopen(CMDS_FILE, "r")) == NULL){
-		return -1;
-	}
-	
-	i = 0;
-	while (fgets(s, MAX_LEN, fp) != 0){
-		i++;
-	}
-	cmds = (char**)malloc(sizeof(char *) * i);
-	
-	fseek(fp, 0, SEEK_SET);
-	i = 0;
-	hPopup = NULL;
-	while (fgets(s, MAX_LEN, fp) != 0){
-		chop(s);
-		p = strtok(s, "\t");
-		if (p[0] == '*'){
-			if (hPopup != NULL){
-				AppendMenu(hLMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
-			}
-			p = strtok(NULL, "\t");
-			if (p == NULL){
-				hPopup = NULL;
-			} else {
-				strcpy(caption, p);
-				hPopup = CreatePopupMenu();
-			}
-		} else {
-			if (hPopup == NULL){
-				AppendMenu(hLMenu, MF_STRING, WM_APP_MENU + i, p);
-			} else {
-				AppendMenu(hPopup, MF_STRING, WM_APP_MENU + i, p);
-			}
-			p = strtok(NULL, "\t");
-			cmds[i] = (char *)malloc(strlen(p) + 1);
-			strcpy(cmds[i], p);
-		}
-		i++;
-	}
-	if (hPopup != NULL){
-		AppendMenu(hLMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
-	}
-	fclose(fp);
-	return 0;
+    int i;
+    FILE *fp;
+    char s[MAX_LEN], *p, caption[_MAX_PATH];
+    HMENU hPopup;
+
+    if ((fp = fopen(CMDS_FILE, "r")) == NULL){
+        return -1;
+    }
+
+    i = 0;
+    while (fgets(s, MAX_LEN, fp) != 0){
+        i++;
+    }
+    cmds = (char**)malloc(sizeof(char *) * i);
+
+    fseek(fp, 0, SEEK_SET);
+    i = 0;
+    hPopup = NULL;
+    while (fgets(s, MAX_LEN, fp) != 0){
+        chop(s);
+        p = strtok(s, "\t");
+        if (p[0] == '*'){
+            if (hPopup != NULL){
+                AppendMenu(hLMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
+            }
+            p = strtok(NULL, "\t");
+            if (p == NULL){
+                hPopup = NULL;
+            } else {
+                strcpy(caption, p);
+                hPopup = CreatePopupMenu();
+            }
+        } else {
+            if (hPopup == NULL){
+                AppendMenu(hLMenu, MF_STRING, WM_APP_MENU + i, p);
+            } else {
+                AppendMenu(hPopup, MF_STRING, WM_APP_MENU + i, p);
+            }
+            p = strtok(NULL, "\t");
+            cmds[i] = (char *)malloc(strlen(p) + 1);
+            strcpy(cmds[i], p);
+        }
+        i++;
+    }
+    if (hPopup != NULL){
+        AppendMenu(hLMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
+    }
+    fclose(fp);
+    return 0;
 }
 
 void disable_ime(void)
 {
-	HMODULE hImm32;
-	BOOL WINAPI (*pImmDisableIME)(DWORD);
+    HMODULE hImm32;
+    BOOL WINAPI (*pImmDisableIME)(DWORD);
 
-	if ((hImm32 = LoadLibrary("imm32.dll")) == NULL) {
-		return;
-	}
-	
-	if ((pImmDisableIME = GetProcAddress(hImm32, "ImmDisableIME")) ==NULL) {
-		return;
-	}
-			
-	pImmDisableIME(0);
-	
-	FreeLibrary(hImm32);
+    if ((hImm32 = LoadLibrary("imm32.dll")) == NULL) {
+        return;
+    }
+
+    if ((pImmDisableIME = GetProcAddress(hImm32, "ImmDisableIME")) != NULL) {
+        pImmDisableIME(0);
+    }
+
+    FreeLibrary(hImm32);
 }
 
 int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefaultWindowMode)
 {
-	HWND hWnd;
-	WNDCLASSEX wcl;
-	MSG Msg;
-	TIMECAPS tc;
-	
-	if ((hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, IDENT)) != NULL) {
-		CloseHandle(hMutex);
-		return 1;
-	}
-	hMutex = CreateMutex(FALSE, 0, IDENT);
-	
-	timeGetDevCaps(&tc , sizeof(TIMECAPS));
-	timeBeginPeriod(tc.wPeriodMin);
-	disable_ime();
+    HWND hWnd;
+    WNDCLASSEX wcl;
+    MSG Msg;
+    TIMECAPS tc;
 
-	hIcon = LoadIcon(NULL, IDI_APPLICATION);
-	wcl.hInstance = hIns;
-	wcl.lpszClassName = IDENT;
-	wcl.lpfnWndProc = WndProc;
-	wcl.style = 0;
-	wcl.hIcon = wcl.hIconSm = hIcon;
-	wcl.hCursor = LoadCursor(NULL, IDI_APPLICATION);
-	wcl.lpszMenuName = NULL;
-	wcl.cbClsExtra = wcl.cbWndExtra = 0;
-	wcl.hbrBackground = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
-	wcl.cbSize = sizeof(WNDCLASSEX);
-	
-	if (RegisterClassEx(&wcl) == 0) {
-		return 1;
-	}
-	
-	hWnd = CreateWindow(
-		IDENT,
-		NULL,
-		WS_OVERLAPPEDWINDOW,
-		GetSystemMetrics(SM_CXSCREEN) / 2,
-		GetSystemMetrics(SM_CYSCREEN) / 2,
-		0,
-		0,
-		NULL,
-		NULL,
-		hIns,
-		NULL
-	);
-	
-	//ShowWindow(hWnd, SW_MINIMIZE);
-	ShowWindow(hWnd, SW_HIDE);
-	//ShowWindow(hWnd, SW_SHOW);
-	//UpdateWindow(hWnd);
-	
-	while(GetMessage(&Msg, NULL, 0, 0)){
-		TranslateMessage(&Msg);
-		DispatchMessage(&Msg);
-	}
+    if ((hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, IDENT)) != NULL) {
+        CloseHandle(hMutex);
+        return 1;
+    }
+    hMutex = CreateMutex(FALSE, 0, IDENT);
 
-	timeEndPeriod(tc.wPeriodMin);
+    timeGetDevCaps(&tc , sizeof(TIMECAPS));
+    timeBeginPeriod(tc.wPeriodMin);
+    disable_ime();
 
-	return Msg.wParam;
+    hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    wcl.hInstance = hIns;
+    wcl.lpszClassName = IDENT;
+    wcl.lpfnWndProc = WndProc;
+    wcl.style = 0;
+    wcl.hIcon = wcl.hIconSm = hIcon;
+    wcl.hCursor = LoadCursor(NULL, IDI_APPLICATION);
+    wcl.lpszMenuName = NULL;
+    wcl.cbClsExtra = wcl.cbWndExtra = 0;
+    wcl.hbrBackground = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
+    wcl.cbSize = sizeof(WNDCLASSEX);
+
+    if (RegisterClassEx(&wcl) == 0) {
+        return 1;
+    }
+
+    hWnd = CreateWindow(
+        IDENT,
+        NULL,
+        WS_OVERLAPPEDWINDOW,
+        GetSystemMetrics(SM_CXSCREEN) / 2,
+        GetSystemMetrics(SM_CYSCREEN) / 2,
+        0,
+        0,
+        NULL,
+        NULL,
+        hIns,
+        NULL
+    );
+
+    ShowWindow(hWnd, SW_HIDE);
+
+    while(GetMessage(&Msg, NULL, 0, 0)){
+        TranslateMessage(&Msg);
+        DispatchMessage(&Msg);
+    }
+
+    timeEndPeriod(tc.wPeriodMin);
+
+    return Msg.wParam;
 }
 
 static void extractpath(char *result, char *path)
 {
-	char drive[_MAX_DRIVE];
-	char dir[_MAX_DIR];
-	char fname[_MAX_FNAME];
-	char ext[_MAX_EXT];
-	
-	_splitpath(path, drive, dir, fname, ext);
-	_makepath(result, drive, dir, "", "");
+    char drive[_MAX_DRIVE];
+    char dir[_MAX_DIR];
+    char fname[_MAX_FNAME];
+    char ext[_MAX_EXT];
+
+    _splitpath(path, drive, dir, fname, ext);
+    _makepath(result, drive, dir, "", "");
 }
 
 static void exec_cmd(int i)
 {
-	char cmd[_MAX_PATH], path[_MAX_PATH];
-	
-	_fullpath(cmd, cmds[i], _MAX_PATH);
-	extractpath(path, cmd);
-	ShellExecute(NULL, NULL, cmd, NULL, path, SW_SHOW);
+    char cmd[_MAX_PATH], path[_MAX_PATH];
+
+    _fullpath(cmd, cmds[i], _MAX_PATH);
+    extractpath(path, cmd);
+    ShellExecute(NULL, NULL, cmd, NULL, path, SW_SHOW);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	POINT pt;
-	HMENU hMenu;
-	static NOTIFYICONDATA nIcon;
-	static UINT WM_TASKBAR_CREATED;
-	
-	switch (uMsg){
-	case WM_TASKTRAY:
-		hMenu = 0;
-		if (lParam == WM_LBUTTONUP) {
-			hMenu = hLMenu;
-		} else if (lParam == WM_RBUTTONUP) {
-			hMenu = hRMenu;
-		}
-		if (hMenu != 0) {
-			SetForegroundWindow(hWnd);
-			GetCursorPos(&pt);
-			TrackPopupMenu(hMenu, TPM_RIGHTALIGN, pt.x, pt.y, 0, hWnd, NULL);
-			PostMessage(hWnd, WM_NULL, 0, 0);
-		}
-		break;
-	case WM_COMMAND:
-		if(LOWORD(wParam) == WM_QUIT_MENU){
-			SendMessage(hWnd, WM_DESTROY, 0, 0);
-		} else if(LOWORD(wParam) == WM_RELOAD_MENU){
-			DestroyMenu(hLMenu);
-			hLMenu = CreatePopupMenu();
-			read_cmds();
-		} else {
-			exec_cmd(LOWORD(wParam) - WM_APP_MENU);
-		}
-		SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
-		break;
-	case WM_CREATE:
-		WM_TASKBAR_CREATED = RegisterWindowMessage("TaskbarCreated");
-		nIcon.cbSize = sizeof(NOTIFYICONDATA);
-		nIcon.hWnd = hWnd;
-		nIcon.uID = 1;
-		nIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-		nIcon.uCallbackMessage = WM_TASKTRAY;
-		nIcon.hIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_COPYFROMRESOURCE);
-		strcpy(nIcon.szTip, APP_TITLE);
-		Shell_NotifyIcon(NIM_ADD, &nIcon);
-		hLMenu = CreatePopupMenu();
-		read_cmds();
-		hRMenu = CreatePopupMenu();
-		AppendMenu(hRMenu, MF_STRING, WM_RELOAD_MENU, "Reload");
-		AppendMenu(hRMenu, MF_STRING, WM_QUIT_MENU, "Quit");
-		break;
-	case WM_DESTROY:
-		Shell_NotifyIcon(NIM_DELETE, &nIcon);
-		DestroyIcon(nIcon.hIcon);
-		DestroyMenu(hLMenu);
-		DestroyMenu(hRMenu);
-		ReleaseMutex(hMutex);
-		PostQuitMessage(0);
-		break;
-	default:
-		if((WM_TASKBAR_CREATED != 0) && (uMsg == WM_TASKBAR_CREATED)){
-			Shell_NotifyIcon(NIM_ADD, &nIcon);
-		}
-		return DefWindowProc(hWnd, uMsg, wParam, lParam);
-	}
-	return 0;
+    POINT pt;
+    HMENU hMenu;
+    static NOTIFYICONDATA nIcon;
+    static UINT WM_TASKBAR_CREATED;
+
+    switch (uMsg){
+    case WM_TASKTRAY:
+        hMenu = 0;
+        if (lParam == WM_LBUTTONUP) {
+            hMenu = hLMenu;
+        } else if (lParam == WM_RBUTTONUP) {
+            hMenu = hRMenu;
+        }
+        if (hMenu != 0) {
+            SetForegroundWindow(hWnd);
+            GetCursorPos(&pt);
+            TrackPopupMenu(hMenu, TPM_RIGHTALIGN, pt.x, pt.y, 0, hWnd, NULL);
+            PostMessage(hWnd, WM_NULL, 0, 0);
+        }
+        break;
+    case WM_COMMAND:
+        if(LOWORD(wParam) == WM_QUIT_MENU){
+            SendMessage(hWnd, WM_DESTROY, 0, 0);
+        } else if(LOWORD(wParam) == WM_RELOAD_MENU){
+            DestroyMenu(hLMenu);
+            hLMenu = CreatePopupMenu();
+            read_cmds();
+        } else {
+            exec_cmd(LOWORD(wParam) - WM_APP_MENU);
+        }
+        SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
+        break;
+    case WM_CREATE:
+        WM_TASKBAR_CREATED = RegisterWindowMessage("TaskbarCreated");
+        nIcon.cbSize = sizeof(NOTIFYICONDATA);
+        nIcon.hWnd = hWnd;
+        nIcon.uID = 1;
+        nIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+        nIcon.uCallbackMessage = WM_TASKTRAY;
+        nIcon.hIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_COPYFROMRESOURCE);
+        strcpy(nIcon.szTip, APP_TITLE);
+        Shell_NotifyIcon(NIM_ADD, &nIcon);
+        hLMenu = CreatePopupMenu();
+        read_cmds();
+        hRMenu = CreatePopupMenu();
+        AppendMenu(hRMenu, MF_STRING, WM_RELOAD_MENU, "Reload");
+        AppendMenu(hRMenu, MF_STRING, WM_QUIT_MENU, "Quit");
+        break;
+    case WM_DESTROY:
+        Shell_NotifyIcon(NIM_DELETE, &nIcon);
+        DestroyIcon(nIcon.hIcon);
+        DestroyMenu(hLMenu);
+        DestroyMenu(hRMenu);
+        ReleaseMutex(hMutex);
+        PostQuitMessage(0);
+        break;
+    default:
+        if((WM_TASKBAR_CREATED != 0) && (uMsg == WM_TASKBAR_CREATED)){
+            Shell_NotifyIcon(NIM_ADD, &nIcon);
+        }
+        return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    }
+    return 0;
 }
