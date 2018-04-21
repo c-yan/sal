@@ -27,7 +27,7 @@ static int read_cmds(void)
 {
 	int i;
 	FILE *fp;
-	char s[MAX_LEN], *p, caption[FILENAME_MAX];
+	char s[MAX_LEN], *p, caption[_MAX_PATH];
 	HMENU hPopup;
 	
 	if ((fp = fopen(CMDS_FILE, "r")) == NULL){
@@ -139,22 +139,24 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 	return Msg.wParam;
 }
 
-static void extract_filepath(char *s)
+static void extractpath(char *result, char *path)
 {
-	int i;
-	for(i = strlen(s); i > 0; i--){
-		if (s[i] == '\\') break;
-	}
-	s[i + 1] = '\0';
+	char drive[_MAX_DRIVE];
+	char dir[_MAX_DIR];
+	char fname[_MAX_FNAME];
+	char ext[_MAX_EXT];
+	
+	_splitpath(path, drive, dir, fname, ext);
+	_makepath(result, drive, dir, "", "");
 }
 
 static void exec_cmd(int i)
 {
-	char s[FILENAME_MAX];
+	char cmd[_MAX_PATH], path[_MAX_PATH];
 	
-	strcpy(s, cmds[i]);
-	extract_filepath(s);
-	ShellExecute(NULL, NULL, cmds[i], NULL, s, SW_SHOW);
+	_fullpath(cmd, cmds[i], _MAX_PATH);
+	extractpath(path, cmd);
+	ShellExecute(NULL, NULL, cmd, NULL, path, SW_SHOW);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)

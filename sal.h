@@ -1,6 +1,6 @@
 #include <windows.h>
 
-#define MAX_LEN         (FILENAME_MAX * 2)
+#define MAX_LEN         _MAX_PATH
 #define WM_TASKTRAY     (WM_APP + 100)
 #define WM_QUIT_MENU    (WM_APP + 200)
 #define WM_RELOAD_MENU  (WM_APP + 300)
