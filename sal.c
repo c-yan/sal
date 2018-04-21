@@ -13,7 +13,7 @@ LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 HANDLE hMutex;
 HICON hIcon;
-HMENU hMenu;
+HMENU hLMenu, hRMenu;
 char **cmds;
 
 static void chop(char s[]){
@@ -48,7 +48,7 @@ static int read_cmds(void)
 		p = strtok(s, "\t");
 		if (p[0] == '*'){
 			if (hPopup != NULL){
-				AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
+				AppendMenu(hLMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
 			}
 			p = strtok(NULL, "\t");
 			if (p == NULL){
@@ -59,7 +59,7 @@ static int read_cmds(void)
 			}
 		} else {
 			if (hPopup == NULL){
-				AppendMenu(hMenu, MF_STRING, WM_APP_MENU + i, p);
+				AppendMenu(hLMenu, MF_STRING, WM_APP_MENU + i, p);
 			} else {
 				AppendMenu(hPopup, MF_STRING, WM_APP_MENU + i, p);
 			}
@@ -70,7 +70,7 @@ static int read_cmds(void)
 		i++;
 	}
 	if (hPopup != NULL){
-		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
+		AppendMenu(hLMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
 	}
 	fclose(fp);
 	return 0;
@@ -108,21 +108,21 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 		return 1;
 	}
 	
-	hWnd = CreateWindowEx(
-		WS_EX_TOOLWINDOW,
+	hWnd = CreateWindow(
 		IDENT,
 		NULL,
 		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT,
-		CW_USEDEFAULT,
-		CW_USEDEFAULT,
-		CW_USEDEFAULT,
-		HWND_DESKTOP,
+		GetSystemMetrics(SM_CXSCREEN) / 2,
+		GetSystemMetrics(SM_CYSCREEN) / 2,
+		0,
+		0,
+		NULL,
 		NULL,
 		hIns,
 		NULL
 	);
 	
+	ShowWindow(hWnd, SW_MINIMIZE);
 	ShowWindow(hWnd, SW_HIDE);
 	//ShowWindow(hWnd, SW_SHOW);
 	UpdateWindow(hWnd);
@@ -168,12 +168,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		if(lParam == WM_LBUTTONDOWN){
 			SetForegroundWindow(hWnd);
 			GetCursorPos(&p);
-			TrackPopupMenu(hMenu, TPM_RIGHTALIGN, p.x, p.y, 0, hWnd, NULL);
+			TrackPopupMenu(hLMenu, TPM_RIGHTALIGN, p.x, p.y, 0, hWnd, NULL);
+		}
+		if(lParam == WM_RBUTTONDOWN){
+			SetForegroundWindow(hWnd);
+			GetCursorPos(&p);
+			TrackPopupMenu(hRMenu, TPM_RIGHTALIGN, p.x, p.y, 0, hWnd, NULL);
 		}
 		break;
 	case WM_COMMAND:
 		if(LOWORD(wParam) == WM_QUIT_MENU){
 			SendMessage(hWnd, WM_DESTROY, 0, 0);
+		} else if(LOWORD(wParam) == WM_RELOAD_MENU){
+			DestroyMenu(hLMenu);
+			hLMenu = CreatePopupMenu();
+			read_cmds();
 		} else {
 			exec_cmd(LOWORD(wParam) - WM_APP_MENU);
 		}
@@ -188,16 +197,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		nIcon.hIcon = (HICON)CopyImage(hIcon, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_COPYFROMRESOURCE);
 		strcpy(nIcon.szTip, APP_TITLE);
 		Shell_NotifyIcon(NIM_ADD, &nIcon);
-		hMenu = CreatePopupMenu();
+		hLMenu = CreatePopupMenu();
 		read_cmds();
-		AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
-		AppendMenu(hMenu, MF_STRING, WM_QUIT_MENU, "Quit");
-		SetMenu(hWnd, hMenu);
+		hRMenu = CreatePopupMenu();
+		AppendMenu(hRMenu, MF_STRING, WM_RELOAD_MENU, "Reload");
+		AppendMenu(hRMenu, MF_STRING, WM_QUIT_MENU, "Quit");
 		break;
 	case WM_DESTROY:
 		Shell_NotifyIcon(NIM_DELETE, &nIcon);
 		DestroyIcon(nIcon.hIcon);
-		DestroyMenu(hMenu);
+		DestroyMenu(hLMenu);
+		DestroyMenu(hRMenu);
 		ReleaseMutex(hMutex);
 		PostQuitMessage(0);
 		break;
