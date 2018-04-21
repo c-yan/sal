@@ -15,9 +15,9 @@ HMENU hLMenu, hRMenu;
 char **cmds;
 char **params;
 
-static void chop(char s[]){
+static void chop(char s[]) {
     int i = strlen(s) - 1;
-    if (s[i] == '\n'){
+    if (s[i] == '\n') {
         s[i] = '\0';
     }
 }
@@ -28,7 +28,7 @@ static int line_count(FILE *fp) {
 
     fseek(fp, 0, SEEK_SET);
     i = 0;
-    while (fgets(s, MAX_LEN, fp) != 0){
+    while (fgets(s, MAX_LEN, fp) != 0) {
         i++;
     }
     fseek(fp, 0, SEEK_SET);
@@ -42,7 +42,7 @@ static int read_cmds(void)
     char s[MAX_LEN], *p, caption[_MAX_PATH];
     HMENU hPopup;
 
-    if ((fp = fopen(CMDS_FILE, "r")) == NULL){
+    if ((fp = fopen(CMDS_FILE, "r")) == NULL) {
         return -1;
     }
 
@@ -52,22 +52,22 @@ static int read_cmds(void)
 
     i = 0;
     hPopup = NULL;
-    while (fgets(s, MAX_LEN, fp) != 0){
+    while (fgets(s, MAX_LEN, fp) != 0) {
         chop(s);
         p = strtok(s, "\t");
-        if (p[0] == '*'){
-            if (hPopup != NULL){
+        if (p[0] == '*') {
+            if (hPopup != NULL) {
                 AppendMenu(hLMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
             }
             p = strtok(NULL, "\t");
-            if (p == NULL){
+            if (p == NULL) {
                 hPopup = NULL;
             } else {
                 strcpy(caption, p);
                 hPopup = CreatePopupMenu();
             }
         } else {
-            if (hPopup == NULL){
+            if (hPopup == NULL) {
                 AppendMenu(hLMenu, MF_STRING, WM_APP_MENU + i, p);
             } else {
                 AppendMenu(hPopup, MF_STRING, WM_APP_MENU + i, p);
@@ -83,7 +83,7 @@ static int read_cmds(void)
         }
         i++;
     }
-    if (hPopup != NULL){
+    if (hPopup != NULL) {
         AppendMenu(hLMenu, MF_STRING | MF_POPUP, (UINT)hPopup, caption);
     }
     fclose(fp);
@@ -155,7 +155,7 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 
     ShowWindow(hWnd, SW_HIDE);
 
-    while(GetMessage(&Msg, NULL, 0, 0)){
+    while(GetMessage(&Msg, NULL, 0, 0)) {
         TranslateMessage(&Msg);
         DispatchMessage(&Msg);
     }
@@ -192,7 +192,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     static NOTIFYICONDATA nIcon;
     static UINT WM_TASKBAR_CREATED;
 
-    switch (uMsg){
+    switch (uMsg) {
     case WM_NOTIFICATION:
         hMenu = 0;
         if (lParam == WM_LBUTTONUP) {
@@ -208,9 +208,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_COMMAND:
-        if(LOWORD(wParam) == WM_QUIT_MENU){
+        if(LOWORD(wParam) == WM_QUIT_MENU) {
             SendMessage(hWnd, WM_DESTROY, 0, 0);
-        } else if(LOWORD(wParam) == WM_RELOAD_MENU){
+        } else if(LOWORD(wParam) == WM_RELOAD_MENU) {
             DestroyMenu(hLMenu);
             hLMenu = CreatePopupMenu();
             // TODO: free cmds/params
@@ -245,8 +245,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         break;
     default:
-        if((WM_TASKBAR_CREATED != 0) && (uMsg == WM_TASKBAR_CREATED)){
-            Shell_NotifyIcon(NIM_ADD, &nIcon);
+        if((WM_TASKBAR_CREATED != 0) && (uMsg == WM_TASKBAR_CREATED)) {
+            while (Shell_NotifyIcon(NIM_ADD, &nIcon) == FALSE) {
+                if (GetLastError() != ERROR_TIMEOUT) break;
+                Sleep(1000);
+            }
         }
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
