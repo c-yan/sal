@@ -224,7 +224,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             // TODO: free cmds/params
             read_cmds();
         } else if(LOWORD(wParam) == WM_CONFIG_MENU) {
-		    ShellExecute(NULL, NULL, CMDS_FILE, NULL, NULL, SW_SHOW);
+            ShellExecute(NULL, NULL, CMDS_FILE, NULL, NULL, SW_SHOW);
         } else {
             exec_cmd(LOWORD(wParam) - WM_APP_MENU);
         }
