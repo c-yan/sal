@@ -106,6 +106,21 @@ static void disable_ime(void)
     FreeLibrary(hImm32);
 }
 
+static void set_dpi_aware(void) {
+    HMODULE hUser32;
+    BOOL WINAPI (*pSetProcessDPIAware)();
+
+    if ((hUser32 = LoadLibrary("user32.dll")) == NULL) {
+        return;
+    }
+
+    if ((pSetProcessDPIAware = GetProcAddress(hUser32, "SetProcessDPIAware")) != NULL) {
+        pSetProcessDPIAware();
+    }
+
+    FreeLibrary(hUser32);
+}
+
 int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefaultWindowMode)
 {
     HWND hWnd;
@@ -121,6 +136,7 @@ int WINAPI WinMain(HINSTANCE hIns, HINSTANCE hPrevIns, LPSTR lpszArgv, int nDefa
 
     timeGetDevCaps(&tc , sizeof(TIMECAPS));
     timeBeginPeriod(tc.wPeriodMin);
+    set_dpi_aware();
     disable_ime();
 
     hIcon = LoadIcon(NULL, IDI_APPLICATION);
