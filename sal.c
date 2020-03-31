@@ -4,7 +4,6 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <mmsystem.h>
-#include <imm.h>
 #include "sal.h"
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
